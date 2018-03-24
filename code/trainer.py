@@ -20,8 +20,8 @@ from miscc.utils import save_img_results, save_model
 from miscc.utils import KL_loss
 from miscc.utils import compute_discriminator_loss, compute_generator_loss
 
-from tensorboard import summary
-from tensorboard import FileWriter
+from tensorboardX import summary
+from tensorboardX import FileWriter #import of tensorboardX instead of tensorboard
 
 
 class GANTrainer(object):
@@ -42,8 +42,9 @@ class GANTrainer(object):
         self.gpus = [int(ix) for ix in s_gpus]
         self.num_gpus = len(self.gpus)
         self.batch_size = cfg.TRAIN.BATCH_SIZE * self.num_gpus
-        torch.cuda.set_device(self.gpus[0])
-        cudnn.benchmark = True
+        if cfg.CUDA:
+            torch.cuda.set_device(self.gpus[0])
+            cudnn.benchmark = True
 
     # ############# For training stageI GAN #############
     def load_network_stageI(self):
@@ -169,8 +170,11 @@ class GANTrainer(object):
                 ######################################################
                 noise.data.normal_(0, 1)
                 inputs = (txt_embedding, noise)
-                _, fake_imgs, mu, logvar = \
+                if cfg.CUDA:
+                    _, fake_imgs, mu, logvar = \
                     nn.parallel.data_parallel(netG, inputs, self.gpus)
+                else:
+                    _, fake_imgs, mu, logvar = netG(txt_embedding, noise)
 
                 ############################
                 # (3) Update D network
@@ -179,7 +183,7 @@ class GANTrainer(object):
                 errD, errD_real, errD_wrong, errD_fake = \
                     compute_discriminator_loss(netD, real_imgs, fake_imgs,
                                                real_labels, fake_labels,
-                                               mu, self.gpus)
+                                               mu, self.gpus, cfg.CUDA)
                 errD.backward()
                 optimizerD.step()
                 ############################
@@ -187,14 +191,18 @@ class GANTrainer(object):
                 ###########################
                 netG.zero_grad()
                 errG = compute_generator_loss(netD, fake_imgs,
-                                              real_labels, mu, self.gpus)
+                                              real_labels, mu, self.gpus, cfg.CUDA)
                 kl_loss = KL_loss(mu, logvar)
                 errG_total = errG + kl_loss * cfg.TRAIN.COEFF.KL
                 errG_total.backward()
                 optimizerG.step()
 
                 count = count + 1
+
+                print('D_loss', errD.data[0])
+                print('G_loss', errG.data[0])
                 if i % 100 == 0:
+
                     summary_D = summary.scalar('D_loss', errD.data[0])
                     summary_D_r = summary.scalar('D_loss_real', errD_real)
                     summary_D_w = summary.scalar('D_loss_wrong', errD_wrong)
@@ -211,8 +219,11 @@ class GANTrainer(object):
 
                     # save the image result for each epoch
                     inputs = (txt_embedding, fixed_noise)
-                    lr_fake, fake, _, _ = \
-                        nn.parallel.data_parallel(netG, inputs, self.gpus)
+                    if cfg.CUDA:
+                        lr_fake, fake, _, _ = \
+                            nn.parallel.data_parallel(netG, inputs, self.gpus)
+                    else:
+                        lr_fake, fake, _, _ = netG(txt_embedding, fixed_noise)
                     save_img_results(real_img_cpu, fake, epoch, self.image_dir)
                     if lr_fake is not None:
                         save_img_results(None, lr_fake, epoch, self.image_dir)
@@ -274,10 +285,15 @@ class GANTrainer(object):
             ######################################################
             noise.data.normal_(0, 1)
             inputs = (txt_embedding, noise)
-            _, fake_imgs, mu, logvar = \
-                nn.parallel.data_parallel(netG, inputs, self.gpus)
-            for i in range(batch_size):
+            if cfg.CUDA:
+                _, fake_imgs, mu, logvar = \
+                    nn.parallel.data_parallel(netG, inputs, self.gpus)
+            else:
+                _, fake_imgs, mu, logvar = \
+                   netG(txt_embedding, noise)
+            for i in range(10):
                 save_name = '%s/%d.png' % (save_dir, count + i)
+                print(save_name)
                 im = fake_imgs[i].data.cpu().numpy()
                 im = (im + 1.0) * 127.5
                 im = im.astype(np.uint8)

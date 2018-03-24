@@ -21,61 +21,107 @@ def KL_loss(mu, logvar):
 
 def compute_discriminator_loss(netD, real_imgs, fake_imgs,
                                real_labels, fake_labels,
-                               conditions, gpus):
-    criterion = nn.BCELoss()
-    batch_size = real_imgs.size(0)
-    cond = conditions.detach()
-    fake = fake_imgs.detach()
-    real_features = nn.parallel.data_parallel(netD, (real_imgs), gpus)
-    fake_features = nn.parallel.data_parallel(netD, (fake), gpus)
-    # real pairs
-    inputs = (real_features, cond)
-    real_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
-    errD_real = criterion(real_logits, real_labels)
-    # wrong pairs
-    inputs = (real_features[:(batch_size-1)], cond[1:])
-    wrong_logits = \
-        nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
-    errD_wrong = criterion(wrong_logits, fake_labels[1:])
-    # fake pairs
-    inputs = (fake_features, cond)
-    fake_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
-    errD_fake = criterion(fake_logits, fake_labels)
+                               conditions, gpus, flag):
+    if flag:
+        criterion = nn.BCELoss()
+        batch_size = real_imgs.size(0)
+        cond = conditions.detach()
+        fake = fake_imgs.detach()
+        real_features = nn.parallel.data_parallel(netD, (real_imgs), gpus)
+        fake_features = nn.parallel.data_parallel(netD, (fake), gpus)
+        # real pairs
+        inputs = (real_features, cond)
+        real_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
+        errD_real = criterion(real_logits, real_labels)
+        # wrong pairs
+        inputs = (real_features[:(batch_size-1)], cond[1:])
+        wrong_logits = \
+            nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
+        errD_wrong = criterion(wrong_logits, fake_labels[1:])
+        # fake pairs
+        inputs = (fake_features, cond)
+        fake_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
+        errD_fake = criterion(fake_logits, fake_labels)
 
-    if netD.get_uncond_logits is not None:
-        real_logits = \
-            nn.parallel.data_parallel(netD.get_uncond_logits,
-                                      (real_features), gpus)
-        fake_logits = \
-            nn.parallel.data_parallel(netD.get_uncond_logits,
-                                      (fake_features), gpus)
-        uncond_errD_real = criterion(real_logits, real_labels)
-        uncond_errD_fake = criterion(fake_logits, fake_labels)
-        #
-        errD = ((errD_real + uncond_errD_real) / 2. +
-                (errD_fake + errD_wrong + uncond_errD_fake) / 3.)
-        errD_real = (errD_real + uncond_errD_real) / 2.
-        errD_fake = (errD_fake + uncond_errD_fake) / 2.
+        if netD.get_uncond_logits is not None:
+            real_logits = \
+                nn.parallel.data_parallel(netD.get_uncond_logits,
+                                          (real_features), gpus)
+            fake_logits = \
+                nn.parallel.data_parallel(netD.get_uncond_logits,
+                                          (fake_features), gpus)
+            uncond_errD_real = criterion(real_logits, real_labels)
+            uncond_errD_fake = criterion(fake_logits, fake_labels)
+            #
+            errD = ((errD_real + uncond_errD_real) / 2. +
+                    (errD_fake + errD_wrong + uncond_errD_fake) / 3.)
+            errD_real = (errD_real + uncond_errD_real) / 2.
+            errD_fake = (errD_fake + uncond_errD_fake) / 2.
+        else:
+            errD = errD_real + (errD_fake + errD_wrong) * 0.5
+        return errD, errD_real.data[0], errD_wrong.data[0], errD_fake.data[0]
     else:
-        errD = errD_real + (errD_fake + errD_wrong) * 0.5
-    return errD, errD_real.data[0], errD_wrong.data[0], errD_fake.data[0]
+        criterion = nn.BCELoss()
+        batch_size = real_imgs.size(0)
+        cond = conditions.detach()
+        fake = fake_imgs.detach()
+        real_features = netD(real_imgs)
+        fake_features = netD(fake)
+        # real pairs
+        cond = cond.contiguous()
+        real_logits = netD.get_cond_logits(real_features, cond)
+        errD_real = criterion(real_logits, real_labels)
+        # wrong pairs
+        wrong_logits = netD.get_cond_logits(real_features[:(batch_size - 1)], cond[1:])
+        errD_wrong = criterion(wrong_logits, fake_labels[1:])
+        # fake pairs
+        fake_logits = netD.get_cond_logits(fake_features, cond)
+        errD_fake = criterion(fake_logits, fake_labels)
+
+        if netD.get_uncond_logits is not None:
+            real_logits = netD.get_uncond_logits(real_features)
+            fake_logits = netD.get_uncond_logits(fake_features)
+            uncond_errD_real = criterion(real_logits, real_labels)
+            uncond_errD_fake = criterion(fake_logits, fake_labels)
+            #
+            errD = ((errD_real + uncond_errD_real) / 2. +
+                    (errD_fake + errD_wrong + uncond_errD_fake) / 3.)
+            errD_real = (errD_real + uncond_errD_real) / 2.
+            errD_fake = (errD_fake + uncond_errD_fake) / 2.
+        else:
+            errD = errD_real + (errD_fake + errD_wrong) * 0.5
+        return errD, errD_real.data[0], errD_wrong.data[0], errD_fake.data[0]
 
 
-def compute_generator_loss(netD, fake_imgs, real_labels, conditions, gpus):
-    criterion = nn.BCELoss()
-    cond = conditions.detach()
-    fake_features = nn.parallel.data_parallel(netD, (fake_imgs), gpus)
-    # fake pairs
-    inputs = (fake_features, cond)
-    fake_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
-    errD_fake = criterion(fake_logits, real_labels)
-    if netD.get_uncond_logits is not None:
-        fake_logits = \
-            nn.parallel.data_parallel(netD.get_uncond_logits,
-                                      (fake_features), gpus)
-        uncond_errD_fake = criterion(fake_logits, real_labels)
-        errD_fake += uncond_errD_fake
-    return errD_fake
+def compute_generator_loss(netD, fake_imgs, real_labels, conditions, gpus, flag):
+    if flag:
+        criterion = nn.BCELoss()
+        cond = conditions.detach()
+        fake_features = nn.parallel.data_parallel(netD, (fake_imgs), gpus)
+        # fake pairs
+        inputs = (fake_features, cond)
+        fake_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
+        errD_fake = criterion(fake_logits, real_labels)
+        if netD.get_uncond_logits is not None:
+            fake_logits = \
+                nn.parallel.data_parallel(netD.get_uncond_logits,
+                                          (fake_features), gpus)
+            uncond_errD_fake = criterion(fake_logits, real_labels)
+            errD_fake += uncond_errD_fake
+        return errD_fake
+    else:
+        criterion = nn.BCELoss()
+        cond = conditions.detach()
+        fake_features = netD(fake_imgs)
+        cond = cond.contiguous()
+        # fake pairs
+        fake_logits = netD.get_cond_logits(fake_features, cond)
+        errD_fake = criterion(fake_logits, real_labels)
+        if netD.get_uncond_logits is not None:
+            fake_logits = netD.get_uncond_logits(fake_features)
+            uncond_errD_fake = criterion(fake_logits, real_labels)
+            errD_fake += uncond_errD_fake
+        return errD_fake
 
 
 #############################
