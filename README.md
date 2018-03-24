@@ -1,3 +1,6 @@
+# CPSC532L_CourseProject_StackGAN
+Course project for the UBC CPSC532L course "Multimodal Learning with Vision, Language and Sound". The goal of the project is to implement StackGAN model and explore different possibilities of improving the quality of generated results. One of the approaches to do so is to train model using different types of loss functions, for example using perceptual losses, proposed in https://arxiv.org/abs/1708.09321. Another area for exploration is to modify architecture of the second GAN to produce two loss functions of discriminator and combine them together or to make second GAN more similar to SRGAN.
+
 # StackGAN-pytorch
 - [Tensorflow implementation](https://github.com/hanzhanggit/StackGAN)
 
