@@ -19,6 +19,13 @@ def KL_loss(mu, logvar):
     return KLD
 
 
+def PIXEL_loss(real_imgs, fake_imgs):
+    loss = nn.MSELoss()
+    fake = fake_imgs.detach()
+    output = loss(real_imgs, fake)
+    return output
+
+
 def compute_discriminator_loss(netD, real_imgs, fake_imgs,
                                real_labels, fake_labels,
                                conditions, gpus, flag):

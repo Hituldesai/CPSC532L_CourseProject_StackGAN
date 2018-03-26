@@ -18,6 +18,7 @@ from miscc.utils import mkdir_p
 from miscc.utils import weights_init
 from miscc.utils import save_img_results, save_model
 from miscc.utils import KL_loss
+from miscc.utils import PIXEL_loss
 from miscc.utils import compute_discriminator_loss, compute_generator_loss
 
 from tensorboardX import summary
@@ -193,14 +194,13 @@ class GANTrainer(object):
                 errG = compute_generator_loss(netD, fake_imgs,
                                               real_labels, mu, self.gpus, cfg.CUDA)
                 kl_loss = KL_loss(mu, logvar)
-                errG_total = errG + kl_loss * cfg.TRAIN.COEFF.KL
+                pixel_loss = PIXEL_loss(real_imgs, fake_imgs)
+                errG_total = errG + kl_loss * cfg.TRAIN.COEFF.KL + pixel_loss * cfg.TRAIN.COEFF.PIX
                 errG_total.backward()
                 optimizerG.step()
 
                 count = count + 1
 
-                print('D_loss', errD.data[0])
-                print('G_loss', errG.data[0])
                 if i % 100 == 0:
 
                     summary_D = summary.scalar('D_loss', errD.data[0])
@@ -209,6 +209,7 @@ class GANTrainer(object):
                     summary_D_f = summary.scalar('D_loss_fake', errD_fake)
                     summary_G = summary.scalar('G_loss', errG.data[0])
                     summary_KL = summary.scalar('KL_loss', kl_loss.data[0])
+                    summary_Pix = summary.scalar('Pixel_loss', pixel_loss.data[0])
 
                     self.summary_writer.add_summary(summary_D, count)
                     self.summary_writer.add_summary(summary_D_r, count)
@@ -216,6 +217,7 @@ class GANTrainer(object):
                     self.summary_writer.add_summary(summary_D_f, count)
                     self.summary_writer.add_summary(summary_G, count)
                     self.summary_writer.add_summary(summary_KL, count)
+                    self.summary_writer.add_summary(summary_Pix, count)
 
                     # save the image result for each epoch
                     inputs = (txt_embedding, fixed_noise)
@@ -228,12 +230,12 @@ class GANTrainer(object):
                     if lr_fake is not None:
                         save_img_results(None, lr_fake, epoch, self.image_dir)
             end_t = time.time()
-            print('''[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f Loss_KL: %.4f
-                     Loss_real: %.4f Loss_wrong:%.4f Loss_fake %.4f
-                     Total Time: %.2fsec
-                  '''
+            print('''[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f Loss_KL: %.4f Loss_Pixel: %.4f
+                                     Loss_real: %.4f Loss_wrong:%.4f Loss_fake %.4f
+                                     Total Time: %.2fsec
+                                  '''
                   % (epoch, self.max_epoch, i, len(data_loader),
-                     errD.data[0], errG.data[0], kl_loss.data[0],
+                     errD.data[0], errG.data[0], kl_loss.data[0], pixel_loss.data[0],
                      errD_real, errD_wrong, errD_fake, (end_t - start_t)))
             if epoch % self.snapshot_interval == 0:
                 save_model(netG, netD, epoch, self.model_dir)

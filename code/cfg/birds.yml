@@ -20,6 +20,7 @@ TRAIN:
     LR_DECAY_EPOCH: 50
     COEFF:
       KL: 2.0
+      PIX: 0.0001
 
 GAN:
     CONDITION_DIM: 128
