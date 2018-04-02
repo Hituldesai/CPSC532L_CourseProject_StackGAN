@@ -13,16 +13,28 @@ import time
 import numpy as np
 import torchfile
 
+import torchvision.models as models
+
 from miscc.config import cfg
 from miscc.utils import mkdir_p
 from miscc.utils import weights_init
 from miscc.utils import save_img_results, save_model
 from miscc.utils import KL_loss
 from miscc.utils import PIXEL_loss
+from miscc.utils import ACT_loss
+from miscc.utils import TEXT_loss
 from miscc.utils import compute_discriminator_loss, compute_generator_loss
 
 from tensorboardX import summary
 from tensorboardX import FileWriter #import of tensorboardX instead of tensorboard
+
+class GramMatrix(nn.Module):
+
+    def forward(self, input):
+        a, b, c, d = input.size()
+        features = input.view(a * b, c * d)
+        G = torch.mm(features, features.t())
+        return G
 
 
 class GANTrainer(object):
@@ -134,16 +146,28 @@ class GANTrainer(object):
         generator_lr = cfg.TRAIN.GENERATOR_LR
         discriminator_lr = cfg.TRAIN.DISCRIMINATOR_LR
         lr_decay_step = cfg.TRAIN.LR_DECAY_EPOCH
-        optimizerD = \
-            optim.Adam(netD.parameters(),
-                       lr=cfg.TRAIN.DISCRIMINATOR_LR, betas=(0.5, 0.999))
         netG_para = []
         for p in netG.parameters():
             if p.requires_grad:
                 netG_para.append(p)
-        optimizerG = optim.Adam(netG_para,
-                                lr=cfg.TRAIN.GENERATOR_LR,
-                                betas=(0.5, 0.999))
+        if cfg.TRAIN.ADAM:
+            optimizerD = \
+                optim.Adam(netD.parameters(),
+                           lr=cfg.TRAIN.DISCRIMINATOR_LR, betas=(0.5, 0.999))
+            optimizerG = optim.Adam(netG_para,
+                                    lr=cfg.TRAIN.GENERATOR_LR,
+                                    betas=(0.5, 0.999))
+        else:
+            optimizerD = \
+                optim.RMSprop(netD.parameters(),
+                           lr=cfg.TRAIN.DISCRIMINATOR_LR)
+            optimizerG = \
+                optim.RMSprop(netG_para,
+                                    lr=cfg.TRAIN.GENERATOR_LR)
+
+        cnn = models.vgg19(pretrained=True).features
+        cnn = nn.Sequential(*list(cnn.children())[0:28])
+        gram = GramMatrix()
         count = 0
         for epoch in range(self.max_epoch):
             start_t = time.time()
@@ -195,12 +219,14 @@ class GANTrainer(object):
                                               real_labels, mu, self.gpus, cfg.CUDA)
                 kl_loss = KL_loss(mu, logvar)
                 pixel_loss = PIXEL_loss(real_imgs, fake_imgs)
-                errG_total = errG + kl_loss * cfg.TRAIN.COEFF.KL + pixel_loss * cfg.TRAIN.COEFF.PIX
+                active_loss = ACT_loss(cnn, real_imgs, fake_imgs)
+                text_loss = TEXT_loss(cnn, gram, real_imgs, fake_imgs, cfg.TRAIN.COEFF.TEXT)
+                errG_total = errG + kl_loss * cfg.TRAIN.COEFF.KL + \
+                                pixel_loss * cfg.TRAIN.COEFF.PIX + \
+                                text_loss
                 errG_total.backward()
                 optimizerG.step()
-
                 count = count + 1
-
                 if i % 100 == 0:
 
                     summary_D = summary.scalar('D_loss', errD.data[0])

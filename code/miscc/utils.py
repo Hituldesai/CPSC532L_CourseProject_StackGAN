@@ -25,6 +25,28 @@ def PIXEL_loss(real_imgs, fake_imgs):
     output = loss(real_imgs, fake)
     return output
 
+def ACT_loss(cnn, real_imgs, fake_imgs):
+    loss = nn.MSELoss()
+    fake = fake_imgs.detach()
+    fake_feaures = cnn(fake)
+    real_features = cnn(real_imgs)
+    fake_feaures = fake_feaures.detach()
+    real_features = real_features.detach()
+    output = loss(real_features, fake_feaures)
+    return output
+
+def TEXT_loss(cnn, gram, real_imgs, fake_imgs, weight):
+    loss = nn.MSELoss()
+    fake = fake_imgs.detach()
+    fake_features = cnn(fake)
+    real_features = cnn(real_imgs)
+    gram_fake = gram(fake_features)
+    gram_real = gram(real_features)
+    gram_fake= gram_fake.detach()*weight
+    gram_real = gram_real.detach()*weight
+    output = loss(gram_fake, gram_real)
+    return output
+
 
 def compute_discriminator_loss(netD, real_imgs, fake_imgs,
                                real_labels, fake_labels,

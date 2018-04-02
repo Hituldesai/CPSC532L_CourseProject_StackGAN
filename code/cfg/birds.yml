@@ -18,9 +18,13 @@ TRAIN:
     DISCRIMINATOR_LR: 0.0002
     GENERATOR_LR: 0.0002
     LR_DECAY_EPOCH: 50
+    ADAM: True
     COEFF:
       KL: 2.0
-      PIX: 0.0001
+      PIX: 0.01
+      ACT: 0.05
+      TEXT: 0.05
+
 
 GAN:
     CONDITION_DIM: 128

@@ -42,7 +42,10 @@ __C.TRAIN.GENERATOR_LR = 2e-4
 
 __C.TRAIN.COEFF = edict()
 __C.TRAIN.COEFF.KL = 2.0
-__C.TRAIN.COEFF.PIX = 0.0001
+__C.TRAIN.COEFF.PIX = 0.01
+__C.TRAIN.COEFF.ACT = 0.05
+__C.TRAIN.COEFF.TEXT = 0.05
+__C.TRAIN.ADAM = True
 
 # Modal options
 __C.GAN = edict()
