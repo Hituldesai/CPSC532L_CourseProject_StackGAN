@@ -29,11 +29,11 @@ from tensorboardX import summary
 from tensorboardX import FileWriter #import of tensorboardX instead of tensorboard
 
 class GramMatrix(nn.Module):
-
     def forward(self, input):
+        input = input. detach()
         a, b, c, d = input.size()
-        features = input.view(a * b, c * d)
-        G = torch.mm(features, features.t())
+        features = input.view(a, b, c * d)
+        G = torch.bmm(features, features.transpose(1, 2))
         return G
 
 
@@ -168,6 +168,9 @@ class GANTrainer(object):
         cnn = models.vgg19(pretrained=True).features
         cnn = nn.Sequential(*list(cnn.children())[0:28])
         gram = GramMatrix()
+        if cfg.CUDA:
+            cnn.cuda()
+            gram.cuda()
         count = 0
         for epoch in range(self.max_epoch):
             start_t = time.time()
@@ -223,6 +226,7 @@ class GANTrainer(object):
                 text_loss = TEXT_loss(cnn, gram, real_imgs, fake_imgs, cfg.TRAIN.COEFF.TEXT)
                 errG_total = errG + kl_loss * cfg.TRAIN.COEFF.KL + \
                                 pixel_loss * cfg.TRAIN.COEFF.PIX + \
+                                active_loss * cfg.TRAIN.COEFF.ACT +\
                                 text_loss
                 errG_total.backward()
                 optimizerG.step()
@@ -236,6 +240,8 @@ class GANTrainer(object):
                     summary_G = summary.scalar('G_loss', errG.data[0])
                     summary_KL = summary.scalar('KL_loss', kl_loss.data[0])
                     summary_Pix = summary.scalar('Pixel_loss', pixel_loss.data[0])
+                    summary_Act = summary.scalar('Act_loss', active_loss.data[0])
+                    summary_Text = summary.scalar('Text_loss', text_loss.data[0])
 
                     self.summary_writer.add_summary(summary_D, count)
                     self.summary_writer.add_summary(summary_D_r, count)
@@ -244,6 +250,8 @@ class GANTrainer(object):
                     self.summary_writer.add_summary(summary_G, count)
                     self.summary_writer.add_summary(summary_KL, count)
                     self.summary_writer.add_summary(summary_Pix, count)
+                    self.summary_writer.add_summary(summary_Act, count)
+                    self.summary_writer.add_summary(summary_Text, count)
 
                     # save the image result for each epoch
                     inputs = (txt_embedding, fixed_noise)
@@ -257,12 +265,13 @@ class GANTrainer(object):
                         save_img_results(None, lr_fake, epoch, self.image_dir)
             end_t = time.time()
             print('''[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f Loss_KL: %.4f Loss_Pixel: %.4f
+                                     Loss_Activ: %.4f Loss_Text: %.4f
                                      Loss_real: %.4f Loss_wrong:%.4f Loss_fake %.4f
                                      Total Time: %.2fsec
                                   '''
                   % (epoch, self.max_epoch, i, len(data_loader),
-                     errD.data[0], errG.data[0], kl_loss.data[0], pixel_loss.data[0],
-                     errD_real, errD_wrong, errD_fake, (end_t - start_t)))
+                     errD.data[0], errG.data[0], kl_loss.data[0], pixel_loss.data[0], active_loss.data[0],
+                     text_loss.data[0], errD_real, errD_wrong, errD_fake, (end_t - start_t)))
             if epoch % self.snapshot_interval == 0:
                 save_model(netG, netD, epoch, self.model_dir)
         #

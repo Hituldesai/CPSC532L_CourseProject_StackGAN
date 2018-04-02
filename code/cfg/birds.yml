@@ -21,9 +21,9 @@ TRAIN:
     ADAM: True
     COEFF:
       KL: 2.0
-      PIX: 0.01
+      PIX: 1.0
       ACT: 0.05
-      TEXT: 0.05
+      TEXT: 0.005
 
 
 GAN:
