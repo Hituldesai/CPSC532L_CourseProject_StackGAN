@@ -1,0 +1,38 @@
+CONFIG_NAME: 'stageII'
+
+DATASET_NAME: 'birds'
+EMBEDDING_TYPE: 'cnn-rnn'
+DATA_DIR: '../data/birds'
+GPU_ID: '0,1'
+CUDA: False
+Z_DIM: 100
+IMSIZE: 256
+WORKERS: 4
+VIS_COUNT: 64
+STAGE: 2
+STAGE1_G: '../models/birds/netG_epoch_200_StageI.pth'
+
+TRAIN:
+    FLAG: True
+    BATCH_SIZE: 24
+    MAX_EPOCH: 100
+    SNAPSHOT_INTERVAL: 2000
+    DISCRIMINATOR_LR: 0.0002
+    GENERATOR_LR: 0.0002
+    LR_DECAY_EPOCH: 100
+    ADAM: True
+    COEFF:
+      KL: 2.0
+      PIX: 1.0
+      ACT: 0.05
+      TEXT: 0.005
+
+
+GAN:
+    CONDITION_DIM: 128
+    DF_DIM: 64
+    GF_DIM: 128
+    R_NUM: 2
+
+TEXT:
+    DIMENSION: 1024

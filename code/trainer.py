@@ -98,6 +98,7 @@ class GANTrainer(object):
             state_dict = \
                 torch.load(cfg.NET_G,
                            map_location=lambda storage, loc: storage)
+            print(state_dict)
             netG.load_state_dict(state_dict)
             print('Load from: ', cfg.NET_G)
         elif cfg.STAGE1_G != '':
@@ -222,8 +223,14 @@ class GANTrainer(object):
                                               real_labels, mu, self.gpus, cfg.CUDA)
                 kl_loss = KL_loss(mu, logvar)
                 pixel_loss = PIXEL_loss(real_imgs, fake_imgs)
-                active_loss = ACT_loss(cnn, real_imgs, fake_imgs)
-                text_loss = TEXT_loss(cnn, gram, real_imgs, fake_imgs, cfg.TRAIN.COEFF.TEXT)
+                if cfg.CUDA:
+                    fake_features = nn.parallel.data_parallel(cnn, fake_imgs.detach(), self.gpus)
+                    real_features = nn.parallel.data_parallel(cnn, real_imgs.detach(), self.gpus)
+                else:
+                    fake_features = cnn(fake_imgs)
+                    real_features = cnn(real_imgs)
+                active_loss = ACT_loss(fake_features, real_features)
+                text_loss = TEXT_loss(gram, fake_features, real_features, cfg.TRAIN.COEFF.TEXT)
                 errG_total = errG + kl_loss * cfg.TRAIN.COEFF.KL + \
                                 pixel_loss * cfg.TRAIN.COEFF.PIX + \
                                 active_loss * cfg.TRAIN.COEFF.ACT +\
