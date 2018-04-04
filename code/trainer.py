@@ -348,3 +348,56 @@ class GANTrainer(object):
                 im.save(save_name)
             count += batch_size
 
+    def sample_dataloader(self, data_loader, stage=1):
+        if stage == 1:
+            netG, _ = self.load_network_stageI()
+        else:
+            netG, _ = self.load_network_stageII()
+        netG.eval()
+        batch_size = self.batch_size
+
+        save_dir = cfg.NET_G[:cfg.NET_G.find('.pth')]
+        mkdir_p(save_dir)
+        nz = cfg.Z_DIM
+
+        noise = Variable(torch.FloatTensor(batch_size, nz))
+        if cfg.CUDA:
+            noise = noise.cuda()
+        count = 0
+
+        for i, data in enumerate(data_loader, 0):
+            ######################################################
+            # (1) Prepare training data
+            ######################################################
+            real_img_cpu, txt_embedding = data
+            txt_embedding = Variable(txt_embedding)
+            if cfg.CUDA:
+                txt_embedding = txt_embedding.cuda()
+
+            if count > 3000:
+                break
+
+            #######################################################
+            # (2) Generate fake images
+            ######################################################
+            noise.data.normal_(0, 1)
+            inputs = (txt_embedding, noise)
+            if cfg.CUDA:
+                _, fake_imgs, mu, logvar = \
+                    nn.parallel.data_parallel(netG, inputs, self.gpus)
+            else:
+                _, fake_imgs, mu, logvar = \
+                   netG(txt_embedding, noise)
+            for i in range(10):
+                save_name = '%s/%d.png' % (save_dir, count + i)
+                print(save_name)
+                im = fake_imgs[i].data.cpu().numpy()
+                im = (im + 1.0) * 127.5
+                im = im.astype(np.uint8)
+                # print('im', im.shape)
+                im = np.transpose(im, (1, 2, 0))
+                # print('im', im.shape)
+                im = Image.fromarray(im)
+                im.save(save_name)
+            count += batch_size
+
