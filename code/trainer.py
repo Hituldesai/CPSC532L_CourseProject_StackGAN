@@ -380,24 +380,25 @@ class GANTrainer(object):
             #######################################################
             # (2) Generate fake images
             ######################################################
-            noise.data.normal_(0, 1)
-            inputs = (txt_embedding, noise)
-            if cfg.CUDA:
-                _, fake_imgs, mu, logvar = \
-                    nn.parallel.data_parallel(netG, inputs, self.gpus)
-            else:
-                _, fake_imgs, mu, logvar = \
-                   netG(txt_embedding, noise)
-            for i in range(10):
-                save_name = '%s/%d.png' % (save_dir, count + i)
-                print(save_name)
-                im = fake_imgs[i].data.cpu().numpy()
-                im = (im + 1.0) * 127.5
-                im = im.astype(np.uint8)
-                # print('im', im.shape)
-                im = np.transpose(im, (1, 2, 0))
-                # print('im', im.shape)
-                im = Image.fromarray(im)
-                im.save(save_name)
+            for j in range(10):
+                noise.data.normal_(0, 1)
+                inputs = (txt_embedding, noise)
+                if cfg.CUDA:
+                    _, fake_imgs, mu, logvar = \
+                        nn.parallel.data_parallel(netG, inputs, self.gpus)
+                else:
+                    _, fake_imgs, mu, logvar = \
+                       netG(txt_embedding, noise)
+                for i in range(10):
+                    save_name = '%s/%d.png' % (save_dir, (count + i)*(j+1))
+                    print(save_name)
+                    im = fake_imgs[i].data.cpu().numpy()
+                    im = (im + 1.0) * 127.5
+                    im = im.astype(np.uint8)
+                    # print('im', im.shape)
+                    im = np.transpose(im, (1, 2, 0))
+                    # print('im', im.shape)
+                    im = Image.fromarray(im)
+                    im.save(save_name)
             count += batch_size
 
