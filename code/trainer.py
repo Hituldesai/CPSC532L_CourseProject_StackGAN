@@ -385,12 +385,12 @@ class GANTrainer(object):
                 inputs = (txt_embedding, noise)
                 if cfg.CUDA:
                     _, fake_imgs, mu, logvar = \
-                        nn.parallel.data_parallel(netG, inputs, self.gpus)
+                    nn.parallel.data_parallel(netG, inputs, self.gpus)
                 else:
                     _, fake_imgs, mu, logvar = \
-                       netG(txt_embedding, noise)
-                for i in range(10):
-                    save_name = '%s/%d.png' % (save_dir, (count + i)*(j+1))
+                    netG(txt_embedding, noise)
+                for i in range(len(fake_imgs.data)):
+                    save_name = '%s/%d_%d.png' % (save_dir, count + i, j)
                     print(save_name)
                     im = fake_imgs[i].data.cpu().numpy()
                     im = (im + 1.0) * 127.5
