@@ -61,18 +61,21 @@ def compute_discriminator_loss(netD, real_imgs, fake_imgs,
         inputs = (real_features, cond)
         real_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
         #errD_real = criterion(real_logits, real_labels)
-        errD_real = real_logits
+        errD_real = real_logits.mean(0)
+        errD_real = errD_real.view(1)
         # wrong pairs
         inputs = (real_features[:(batch_size-1)], cond[1:])
         wrong_logits = \
             nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
         #errD_wrong = criterion(wrong_logits, fake_labels[1:])
-        errD_wrong = wrong_logits
+        errD_wrong = wrong_logits.mean(0)
+        errD_wrong = errD_wrong.view(1)
         # fake pairs
         inputs = (fake_features, cond)
         fake_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
         #errD_fake = criterion(fake_logits, fake_labels)
-        errD_fake = fake_logits
+        errD_fake = fake_logits.mean(0)
+        errD_fake = errD_fake.view(1)
 
         if netD.get_uncond_logits is not None:
             real_logits = \
@@ -83,8 +86,10 @@ def compute_discriminator_loss(netD, real_imgs, fake_imgs,
                                           (fake_features), gpus)
             #uncond_errD_real = criterion(real_logits, real_labels)
             #uncond_errD_fake = criterion(fake_logits, fake_labels)
-            uncond_errD_real = real_logits
-            uncond_errD_fake = fake_logits
+            uncond_errD_real = real_logits.mean(0)
+            uncond_errD_real = uncond_errD_real.view(1)
+            uncond_errD_fake = fake_logits.mean(0)
+            uncond_errD_fake = uncond_errD_fake.view(1)
             #
             errD = ((errD_real + uncond_errD_real) / 2. +
                     (errD_fake + errD_wrong + uncond_errD_fake) / 3.)
@@ -104,23 +109,28 @@ def compute_discriminator_loss(netD, real_imgs, fake_imgs,
         cond = cond.contiguous()
         real_logits = netD.get_cond_logits(real_features, cond)
         #errD_real = criterion(real_logits, real_labels)
-        errD_real = real_logits
+        errD_real = real_logits.mean(0)
+        errD_real = errD_real.view(1)
         # wrong pairs
         wrong_logits = netD.get_cond_logits(real_features[:(batch_size - 1)], cond[1:])
         #errD_wrong = criterion(wrong_logits, fake_labels[1:])
-        errD_wrong = wrong_logits
+        errD_wrong = wrong_logits.mean(0)
+        errD_wrong = errD_wrong.view(1)
         # fake pairs
         fake_logits = netD.get_cond_logits(fake_features, cond)
         #errD_fake = criterion(fake_logits, fake_labels)
-        errD_fake = fake_logits
+        errD_fake = fake_logits.mean(0)
+        errD_fake = errD_fake.view(1)
 
         if netD.get_uncond_logits is not None:
             real_logits = netD.get_uncond_logits(real_features)
             fake_logits = netD.get_uncond_logits(fake_features)
             #uncond_errD_real = criterion(real_logits, real_labels)
             #uncond_errD_fake = criterion(fake_logits, fake_labels)
-            uncond_errD_real = real_logits
-            uncond_errD_fake = fake_logits
+            uncond_errD_real = real_logits.mean(0)
+            uncond_errD_real = uncond_errD_real.view(1)
+            uncond_errD_fake = fake_logits.mean(0)
+            uncond_errD_fake = uncond_errD_fake.view(1)
             #
             errD = ((errD_real + uncond_errD_real) / 2. +
                     (errD_fake + errD_wrong + uncond_errD_fake) / 3.)
@@ -140,13 +150,15 @@ def compute_generator_loss(netD, fake_imgs, real_labels, conditions, gpus, flag)
         inputs = (fake_features, cond)
         fake_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
         #errD_fake = criterion(fake_logits, real_labels)
-        errD_fake = fake_logits
+        errD_fake = fake_logits.mean(0)
+        errD_fake = errD_fake.view(1)
         if netD.get_uncond_logits is not None:
             fake_logits = \
                 nn.parallel.data_parallel(netD.get_uncond_logits,
                                           (fake_features), gpus)
             #uncond_errD_fake = criterion(fake_logits, real_labels)
-            uncond_errD_fake = fake_logits
+            uncond_errD_fake = fake_logits.mean(0)
+            uncond_errD_fake = uncond_errD_fake.view(1)
             errD_fake += uncond_errD_fake
         return errD_fake
     else:
@@ -157,11 +169,13 @@ def compute_generator_loss(netD, fake_imgs, real_labels, conditions, gpus, flag)
         # fake pairs
         fake_logits = netD.get_cond_logits(fake_features, cond)
         #errD_fake = criterion(fake_logits, real_labels)
-        errD_fake = fake_logits
+        errD_fake = fake_logits.mean(0)
+        errD_fake = errD_fake.view(1)
         if netD.get_uncond_logits is not None:
             fake_logits = netD.get_uncond_logits(fake_features)
             #uncond_errD_fake = criterion(fake_logits, real_labels)
-            uncond_errD_fake = fake_logits
+            uncond_errD_fake = fake_logits.mean(0)
+            uncond_errD_fake = uncond_errD_fake.view(1)
             errD_fake += uncond_errD_fake
         return errD_fake
 

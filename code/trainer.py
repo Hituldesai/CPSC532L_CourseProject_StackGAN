@@ -127,6 +127,8 @@ class GANTrainer(object):
         return netG, netD
 
     def train(self, data_loader, stage=1):
+        one = torch.FloatTensor([1])
+        mone = one * -1
         if stage == 1:
             netG, netD = self.load_network_stageI()
         else:
@@ -213,6 +215,8 @@ class GANTrainer(object):
                     compute_discriminator_loss(netD, real_imgs, fake_imgs,
                                                real_labels, fake_labels,
                                                mu, self.gpus, cfg.CUDA)
+                errD = errD *1000000
+
                 errD.backward()
                 optimizerD.step()
                 ############################
@@ -221,6 +225,7 @@ class GANTrainer(object):
                 netG.zero_grad()
                 errG = compute_generator_loss(netD, fake_imgs,
                                               real_labels, mu, self.gpus, cfg.CUDA)
+                errG= errG * 100000000
                 kl_loss = KL_loss(mu, logvar)
                 pixel_loss = PIXEL_loss(real_imgs, fake_imgs)
                 if cfg.CUDA:
@@ -401,4 +406,3 @@ class GANTrainer(object):
                     im = Image.fromarray(im)
                     im.save(save_name)
             count += batch_size
-
