@@ -91,12 +91,12 @@ def compute_discriminator_loss(netD, real_imgs, fake_imgs,
             uncond_errD_fake = fake_logits.mean(0)
             uncond_errD_fake = uncond_errD_fake.view(1)
             #
-            errD = ((errD_real + uncond_errD_real) / 2. +
+            errD = (-(errD_real + uncond_errD_real) / 2. +
                     (errD_fake + errD_wrong + uncond_errD_fake) / 3.)
             errD_real = (errD_real + uncond_errD_real) / 2.
             errD_fake = (errD_fake + uncond_errD_fake) / 2.
         else:
-            errD = errD_real + (errD_fake + errD_wrong) * 0.5
+            errD = -errD_real + (errD_fake + errD_wrong) * 0.5
         return errD, errD_real.data[0], errD_wrong.data[0], errD_fake.data[0]
     else:
         criterion = nn.BCELoss()
@@ -132,12 +132,12 @@ def compute_discriminator_loss(netD, real_imgs, fake_imgs,
             uncond_errD_fake = fake_logits.mean(0)
             uncond_errD_fake = uncond_errD_fake.view(1)
             #
-            errD = ((errD_real + uncond_errD_real) / 2. +
+            errD = (-(errD_real + uncond_errD_real) / 2. +
                     (errD_fake + errD_wrong + uncond_errD_fake) / 3.)
             errD_real = (errD_real + uncond_errD_real) / 2.
             errD_fake = (errD_fake + uncond_errD_fake) / 2.
         else:
-            errD = errD_real + (errD_fake + errD_wrong) * 0.5
+            errD = -errD_real + (errD_fake + errD_wrong) * 0.5
         return errD, errD_real.data[0], errD_wrong.data[0], errD_fake.data[0]
 
 
@@ -160,7 +160,7 @@ def compute_generator_loss(netD, fake_imgs, real_labels, conditions, gpus, flag)
             uncond_errD_fake = fake_logits.mean(0)
             uncond_errD_fake = uncond_errD_fake.view(1)
             errD_fake += uncond_errD_fake
-        return errD_fake
+        return -errD_fake
     else:
         criterion = nn.BCELoss()
         cond = conditions.detach()
@@ -177,7 +177,7 @@ def compute_generator_loss(netD, fake_imgs, real_labels, conditions, gpus, flag)
             uncond_errD_fake = fake_logits.mean(0)
             uncond_errD_fake = uncond_errD_fake.view(1)
             errD_fake += uncond_errD_fake
-        return errD_fake
+        return -errD_fake
 
 
 #############################

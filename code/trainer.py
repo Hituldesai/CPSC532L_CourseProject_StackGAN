@@ -215,8 +215,8 @@ class GANTrainer(object):
                     compute_discriminator_loss(netD, real_imgs, fake_imgs,
                                                real_labels, fake_labels,
                                                mu, self.gpus, cfg.CUDA)
-                errD = errD *1000000
 
+                errD = errD
                 errD.backward()
                 optimizerD.step()
                 ############################
@@ -225,7 +225,7 @@ class GANTrainer(object):
                 netG.zero_grad()
                 errG = compute_generator_loss(netD, fake_imgs,
                                               real_labels, mu, self.gpus, cfg.CUDA)
-                errG= errG * 100000000
+                errG = errG
                 kl_loss = KL_loss(mu, logvar)
                 pixel_loss = PIXEL_loss(real_imgs, fake_imgs)
                 if cfg.CUDA:
@@ -237,9 +237,9 @@ class GANTrainer(object):
                 active_loss = ACT_loss(fake_features, real_features)
                 text_loss = TEXT_loss(gram, fake_features, real_features, cfg.TRAIN.COEFF.TEXT)
                 errG_total = errG + kl_loss * cfg.TRAIN.COEFF.KL + \
-                                pixel_loss * cfg.TRAIN.COEFF.PIX + \
-                                active_loss * cfg.TRAIN.COEFF.ACT +\
-                                text_loss
+                             pixel_loss * cfg.TRAIN.COEFF.PIX + \
+                             active_loss * cfg.TRAIN.COEFF.ACT + \
+                             text_loss
                 errG_total.backward()
                 optimizerG.step()
                 count = count + 1
@@ -406,3 +406,4 @@ class GANTrainer(object):
                     im = Image.fromarray(im)
                     im.save(save_name)
             count += batch_size
+
